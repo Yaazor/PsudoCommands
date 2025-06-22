@@ -3,10 +3,14 @@ package me.zombie_striker.psudocommands;
 import com.google.common.base.Preconditions;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.server.dedicated.DedicatedServer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.*;
+import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.entity.Entity;
 
 import java.lang.reflect.Constructor;
@@ -196,14 +200,9 @@ public class PsudoReflection {
         }
     }
 
-    public static CommandDispatcher<Object> getCommandDispatcher() {
-        try {
-            Object nmsDedicatedServer = GET_SERVER.invoke(Bukkit.getServer());
-            Object nmsDispatcher = GET_COMMANDS_DISPATCHER.invoke(nmsDedicatedServer);
-            return (CommandDispatcher<Object>) GET_DISPATCHER.invoke(nmsDispatcher); // Spigot 1.21.2 ? IllegalArgumentException: object of type net.minecraft.commands.CommandListenerWrapper is not an instance of net.minecraft.commands.CommandDispatcher
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
+    public static CommandDispatcher<CommandSourceStack> getCommandDispatcher() {
+        DedicatedServer dedicatedServer = ((CraftServer) Bukkit.getServer()).getServer();
+        return dedicatedServer.getCommands().getDispatcher();
     }
 
     public static CommandSender getBukkitSender(Object commandWrapperListener) {
