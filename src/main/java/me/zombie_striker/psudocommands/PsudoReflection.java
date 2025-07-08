@@ -3,10 +3,23 @@ package me.zombie_striker.psudocommands;
 import com.google.common.base.Preconditions;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.commands.CommandSource;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.coordinates.LocalCoordinates;
+import net.minecraft.commands.arguments.selector.EntitySelector;
+import net.minecraft.core.Direction;
+import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.*;
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
 import org.bukkit.entity.Entity;
 
 import java.lang.reflect.Constructor;
@@ -18,318 +31,74 @@ import java.util.*;
 // https://mappings.dev/1.21.1/net/minecraft/commands/CommandSourceStack.html
 public class PsudoReflection {
 
-    // CLASS NAME : Spigot: CommandListenerWrapper, Mojang: CommandSourceStack
-    private static final Method GET_ENTITY_METHOD, // Method getEntity() (for both Spigot and Mojang)
-                                GET_BUKKIT_BASED_SENDER_METHOD, // CraftBukkit method: getBukkitSender()
-                                GET_BUKKIT_LOCATION_METHOD, // Paper method: getBukkitLocation()
-                                GET_POSITION, GET_LEVEL, GET_ROTATION; // if getBukkitLocation is found, these three methods are null
-
-    private static final Method GET_BUKKIT_SENDER_METHOD; // CraftBukkit method ICommandListener#getBukkitSender(), Mojang class name : CommandSource
-
-    // CLASS NAME : Spigot: ArgumentEntity, Mojang: EntityArgument
-    static final Method ENTITY_ARGUMENT_ENTITIES_METHOD, // Spigot: multipleEntities(), Mojang: entities()
-                        ENTITY_ARGUMENT_PARSE_METHOD; // Spigot: a(StringReader, boolean), Mojang: parse(StringReader arg0) (boolean added by CraftBukkit, then natively in 1.21.1)
-
-    static final Method GET_COMMANDS_DISPATCHER, // Spigot : MinecraftServer#getCommandDispatcher(), Mojang : MinecraftServer#getCommands()
-                        GET_DISPATCHER; // Spigot : CommandDispatcher#a(), Mojang : Commands#getDispatcher()
-
-    private static final Method ENTITY_SELECTOR_FIND_ENTITIES_METHOD; // Spigot: EntitySelector#getEntities(CommandListenerWrapper), Mojang: EntitySelector#findEntities(CommandSourceStack)
-    private static final Method LOCAL_COORD_GET_POSITION_METHOD; // Spigot: ArgumentVectorPosition#a(CommandListenerWrapper), Mojang: LocalCoordinates#getPosition(CommandSourceStack)
-    private static final Method GET_X, GET_Y, GET_Z; // Spigot: Vec3D#a(), Mojang: Vec3#x()
-    private static final Method GET_COMMAND_MAP_METHOD; // craftbukkit package: CraftServer#getCommandMap()
-    private static final Method GET_KNOW_COMMANDS_METHOD; // craftbukkit package: CraftCommandMap#getKnownCommand()
-    private static final Method GET_LISTENER; // craftbukkit package: VanillaCommandWrapper#getListener(CommandSender)
-    private static final Method GET_SERVER; // craftbukkit package: CraftServer#getServer()
-    private static final Method SERVER_PLAYER_COMMAND_SOURCE; // CommandSource net.minecraft.server.level.ServerPlayer#commandSource(), only used from 1.21.3
-
-    private static final Constructor<?> LOCAL_COORD_CONSTRUCTOR;
-
-    private static final Method SERVER_LEVEL_GET_WORLD; // craftbukkit method ServerLevel#getWorld(), null if getBukkitLocation is found
-    private static final Field X, Y; // x and y fields of Vec2 class
-    private static final Field ENTITY_COMMAND_SOURCE; // CommandSource field from net.minecraft.world.entity.Entity, only used from 1.21.3
-
-    static {
-        try {
-            Class<?> commandListenerWrapper, commandListener, argumentEntity, entitySelector,
-                    localCoordinates, vec3, minecraftServer, commands, serverPlayerClass, entityClass;
-            if (ReflectionUtil.minecraftVersion() > 16) {
-                commandListenerWrapper = ReflectionUtil.mcClass("commands.CommandListenerWrapper");
-                commandListener = ReflectionUtil.mcClass("commands.ICommandListener");
-                argumentEntity = ReflectionUtil.mcClass("commands.arguments.ArgumentEntity");
-                entitySelector = ReflectionUtil.mcClass("commands.arguments.selector.EntitySelector");
-                localCoordinates = ReflectionUtil.mcClass("commands.arguments.coordinates.ArgumentVectorPosition");
-                vec3 = ReflectionUtil.mcClass("world.phys.Vec3D");
-                minecraftServer = ReflectionUtil.mcClass("server.MinecraftServer");
-                commands = ReflectionUtil.mcClass("commands.CommandDispatcher");
-                serverPlayerClass = ReflectionUtil.mcClass("server.level.EntityPlayer");
-                entityClass = ReflectionUtil.mcClass("world.entity.Entity");
-            } else {
-                commandListenerWrapper = ReflectionUtil.nmsClass("CommandListenerWrapper");
-                commandListener = ReflectionUtil.nmsClass("ICommandListener");
-                argumentEntity = ReflectionUtil.nmsClass("ArgumentEntity");
-                entitySelector = ReflectionUtil.nmsClass("EntitySelector");
-                localCoordinates = ReflectionUtil.nmsClass("ArgumentVectorPosition");
-                vec3 = ReflectionUtil.nmsClass("Vec3D");
-                minecraftServer = ReflectionUtil.nmsClass("MinecraftServer");
-                commands = ReflectionUtil.nmsClass("CommandDispatcher");
-                serverPlayerClass = null;
-                entityClass = null;
-            }
-            Class<?> vanillaCommandWrapper = ReflectionUtil.obcClass("command.VanillaCommandWrapper");
-            Class<?> craftCommandMap = ReflectionUtil.obcClass("command.CraftCommandMap");
-            Class<?> craftServer = ReflectionUtil.obcClass("CraftServer");
-
-            // distinct obfuscated names
-            if (ReflectionUtil.VERSION >= 21) {
-                GET_ENTITY_METHOD = ReflectionUtil.getMethod(commandListenerWrapper, "f");
-                if (ReflectionUtil.VERSION == 21 && ReflectionUtil.VERSION_MINOR <= 2) GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, "aH");
-                else GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, "aG");
-            } else if (ReflectionUtil.VERSION == 20) {
-                GET_ENTITY_METHOD = ReflectionUtil.getMethod(commandListenerWrapper, "f");
-                if (ReflectionUtil.VERSION_MINOR <= 2) GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, "aC");
-                else if (ReflectionUtil.VERSION_MINOR <= 4) GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, "aE");
-                else GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, "aH");
-            } else if (ReflectionUtil.VERSION == 19) {
-                GET_ENTITY_METHOD = ReflectionUtil.getMethod(commandListenerWrapper, ReflectionUtil.VERSION_MINOR <= 2 ? "g" : "f");
-                GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, ReflectionUtil.VERSION_MINOR == 3 ? "aB" : "aC");
-            } else if (ReflectionUtil.VERSION == 18) {
-                GET_ENTITY_METHOD = ReflectionUtil.getMethod(commandListenerWrapper, "f");
-                GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, "aA");
-            } else {
-                GET_ENTITY_METHOD = ReflectionUtil.getMethod(commandListenerWrapper, "getEntity");
-                GET_COMMANDS_DISPATCHER = ReflectionUtil.getMethod(minecraftServer, "getCommandDispatcher");
-            }
-
-            // same obfuscated names
-            if (ReflectionUtil.VERSION > 17) {
-                ENTITY_ARGUMENT_ENTITIES_METHOD = ReflectionUtil.getMethod(argumentEntity, "b");
-                ENTITY_SELECTOR_FIND_ENTITIES_METHOD = ReflectionUtil.getMethod(entitySelector, "b", commandListenerWrapper);
-                GET_X = ReflectionUtil.getMethod(vec3, "a");
-                GET_Y = ReflectionUtil.getMethod(vec3, "b");
-                GET_Z = ReflectionUtil.getMethod(vec3, "c");
-            } else {
-                ENTITY_ARGUMENT_ENTITIES_METHOD = argumentEntity.getDeclaredMethod("multipleEntities");
-                ENTITY_SELECTOR_FIND_ENTITIES_METHOD = entitySelector.getDeclaredMethod("getEntities", commandListenerWrapper);
-                GET_X = ReflectionUtil.getMethod(vec3, "getX");
-                GET_Y = ReflectionUtil.getMethod(vec3, "getY");
-                GET_Z = ReflectionUtil.getMethod(vec3, "getZ");
-            }
-
-            if (!ReflectionUtil.runningAboveVersion("1.21.3")) {
-                if (ReflectionUtil.runningExactVersion("1.21.5")) {
-                    SERVER_PLAYER_COMMAND_SOURCE = ReflectionUtil.getMethod(serverPlayerClass, "y");
-                } else {
-                    SERVER_PLAYER_COMMAND_SOURCE = ReflectionUtil.getMethod(serverPlayerClass, "z");
-                }
-                ENTITY_COMMAND_SOURCE = entityClass.getDeclaredField("commandSource");
-                ENTITY_COMMAND_SOURCE.setAccessible(true);
-            } else {
-                SERVER_PLAYER_COMMAND_SOURCE = null; // Only needed in 1.21.3+
-                ENTITY_COMMAND_SOURCE = null;
-            }
-
-            LOCAL_COORD_GET_POSITION_METHOD = ReflectionUtil.getMethod(localCoordinates, "a", commandListenerWrapper);
-            GET_DISPATCHER = ReflectionUtil.getMethod(commands, "a");
-            GET_BUKKIT_SENDER_METHOD = ReflectionUtil.getMethod(commandListener, "getBukkitSender", commandListenerWrapper); // craftbukkit method
-            GET_BUKKIT_BASED_SENDER_METHOD = ReflectionUtil.getMethod(commandListenerWrapper, "getBukkitSender"); // craftbukkit method
-            GET_LISTENER = ReflectionUtil.getMethod(vanillaCommandWrapper, "getListener", CommandSender.class); // not NMS, craftbukkit package
-            GET_KNOW_COMMANDS_METHOD = ReflectionUtil.getMethod(craftCommandMap, "getKnownCommands"); // not NMS, craftbukkit package
-            GET_COMMAND_MAP_METHOD = ReflectionUtil.getMethod(craftServer, "getCommandMap"); // not NMS, craftbukkit package
-            GET_SERVER = ReflectionUtil.getMethod(craftServer, "getServer"); // not NMS, craftbukkit package
-
-            LOCAL_COORD_CONSTRUCTOR = localCoordinates.getConstructor(double.class, double.class, double.class);
-            LOCAL_COORD_CONSTRUCTOR.setAccessible(true);
-
-            /*if (USING_PAPER) {
-                ENTITY_ARGUMENT_PARSE_METHOD = getMethod(argumentEntity, "parse", StringReader.class, boolean.class); // craftbukkit method (without boolean, obf name is a)
-                GET_BUKKIT_LOCATION_METHOD = getMethod(commandListenerWrapper, "getBukkitLocation"); // TODO: Paper method, changed from 1.20.5 to the paper brigadier api CommandSourceStack
-                GET_POSITION = null;
-                GET_LEVEL = null;
-                GET_ROTATION = null;
-                SERVER_LEVEL_GET_WORLD = null;
-                X = null;
-                Y = null;
-            } else {*/
-            if (ReflectionUtil.runningAboveVersion("1.21.1")) {
-                ENTITY_ARGUMENT_PARSE_METHOD = ReflectionUtil.getMethod(argumentEntity, "a", StringReader.class, boolean.class); // added natively with boolean in 1.21.1
-            } else {
-                ENTITY_ARGUMENT_PARSE_METHOD = ReflectionUtil.getMethod(argumentEntity, "parse", StringReader.class, boolean.class); // craftbukkit method (without boolean, obf name is a)
-            }
-            GET_BUKKIT_LOCATION_METHOD = null;
-            Class<?> level, vec2;
-            if (ReflectionUtil.VERSION > 16) {
-                level = ReflectionUtil.mcClass("world.level.World");
-                vec2 = ReflectionUtil.mcClass("world.phys.Vec2F");
-            } else {
-                level = ReflectionUtil.nmsClass("World");
-                vec2 = ReflectionUtil.nmsClass("Vec2F");
-            }
-            SERVER_LEVEL_GET_WORLD = ReflectionUtil.getMethod(level, "getWorld");
-            if (ReflectionUtil.runningBelowVersion("1.21.4")) {
-                X = vec2.getDeclaredField("i");
-                Y = vec2.getDeclaredField("j");
-            } else {
-                X = vec2.getDeclaredField("j");
-                Y = vec2.getDeclaredField("k");
-            }
-            X.setAccessible(true);
-            Y.setAccessible(true);
-            if (ReflectionUtil.VERSION >= 20) {
-                GET_POSITION = ReflectionUtil.getMethod(commandListenerWrapper, "d");
-                GET_LEVEL = ReflectionUtil.getMethod(commandListenerWrapper, "e");
-                GET_ROTATION = ReflectionUtil.getMethod(commandListenerWrapper, "k");
-            } else if (ReflectionUtil.VERSION == 19) {
-                GET_POSITION = ReflectionUtil.getMethod(commandListenerWrapper, ReflectionUtil.VERSION_MINOR <= 2 ? "e" : "d");
-                GET_LEVEL = ReflectionUtil.getMethod(commandListenerWrapper, ReflectionUtil.VERSION_MINOR <= 2 ? "f" : "e");
-                GET_ROTATION = ReflectionUtil.getMethod(commandListenerWrapper, ReflectionUtil.VERSION_MINOR <= 2 ? "l" : "k");
-            } else if (ReflectionUtil.VERSION == 18) {
-                GET_POSITION = ReflectionUtil.getMethod(commandListenerWrapper, "d");
-                GET_LEVEL = ReflectionUtil.getMethod(commandListenerWrapper, "e");
-                GET_ROTATION = ReflectionUtil.getMethod(commandListenerWrapper, "i");
-            } else {
-                GET_POSITION = ReflectionUtil.getMethod(commandListenerWrapper, "getPosition");
-                GET_LEVEL = ReflectionUtil.getMethod(commandListenerWrapper, "getWorld");
-                GET_ROTATION = ReflectionUtil.getMethod(commandListenerWrapper, "i");
-            }
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    public static CommandDispatcher<Object> getCommandDispatcher() {
-        try {
-            Object nmsDedicatedServer = GET_SERVER.invoke(Bukkit.getServer());
-            Object nmsDispatcher = GET_COMMANDS_DISPATCHER.invoke(nmsDedicatedServer);
-            return (CommandDispatcher<Object>) GET_DISPATCHER.invoke(nmsDispatcher); // Spigot 1.21.2 ? IllegalArgumentException: object of type net.minecraft.commands.CommandListenerWrapper is not an instance of net.minecraft.commands.CommandDispatcher
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static CommandSender getBukkitSender(Object commandWrapperListener) {
+    public static CommandSender getBukkitSender(CommandSourceStack commandWrapperListener) {
         Objects.requireNonNull(commandWrapperListener, "commandWrapperListener");
 
-        try {
-            Object entity = GET_ENTITY_METHOD.invoke(commandWrapperListener);
-            if (entity == null) {
-                return null;
-            } else {
-                return (CommandSender) GET_BUKKIT_SENDER_METHOD.invoke(getCommandSource(entity), commandWrapperListener);
-            }
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
+        net.minecraft.world.entity.Entity entity = commandWrapperListener.getEntity();
+        if (entity == null) {
+            return null;
+        } else {
+            return getCommandSource(entity).getBukkitSender(commandWrapperListener);
         }
     }
 
-    public static Object getCommandSource(Object entity) {
-        if (ReflectionUtil.runningBelowVersion("1.21.2")) {
-            return entity;
-        } else{
-            // From 1.21.3, both net.minecraft.world.entity.Entity and net.minecraft.server.level.ServerPlayer do not
-            // extend net.minecraft.commands.CommandSource anymore. For ServerPlayer, use a public method, for Entity,
-            // get a private field.
-            Class<?> serverPlayerClass;
-            try {
-                serverPlayerClass = ReflectionUtil.mcClass("server.level.EntityPlayer");
-                if (serverPlayerClass.isInstance(entity)) {
-                    return SERVER_PLAYER_COMMAND_SOURCE.invoke(entity);
-                } else {
-                    return ENTITY_COMMAND_SOURCE.get(entity);
-                }
-            } catch (ReflectiveOperationException e) {
-                return null;
-            }
+    public static CommandSource getCommandSource(net.minecraft.world.entity.Entity entity) {
+        if(entity instanceof ServerPlayer serverPlayer) {
+            return serverPlayer.commandSource();
+        }else{
+            return entity.createCommandSourceStackForNameResolution(entity.level().getMinecraftWorld()).source;
         }
     }
 
-    public static CommandSender getBukkitBasedSender(Object commandWrapperListener) {
-        Objects.requireNonNull(commandWrapperListener, "commandWrapperListener");
-
-        try {
-            return (CommandSender) GET_BUKKIT_BASED_SENDER_METHOD.invoke(commandWrapperListener);
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
+    public static CommandSender getBukkitBasedSender(CommandSourceStack commandWrapperListener) {
+        return commandWrapperListener.getBukkitSender();
     }
 
-    public static Location getBukkitLocation(Object commandWrapperListener) {
-        Objects.requireNonNull(commandWrapperListener, "commandWrapperListener");
-
-        try {
-            if (GET_BUKKIT_LOCATION_METHOD != null) { // todo paper usage ?
-                // problem with local coordinates that does not work because pos has nul yaw & pitch. We use local coordinates
-                // with the commandWrapperListener (cf. getLocalCoord) to avoid to get rotation and anchor by hand.
-                return (Location) GET_BUKKIT_LOCATION_METHOD.invoke(commandWrapperListener);
-            } else {
-                World world = (World) SERVER_LEVEL_GET_WORLD.invoke(GET_LEVEL.invoke(commandWrapperListener));
-                Object pos = GET_POSITION.invoke(commandWrapperListener);
-                Object rot = GET_ROTATION.invoke(commandWrapperListener);
-                if (world == null || pos == null) {
-                    return null;
-                }
-                float yaw = rot != null ? (float) X.get(rot) : 0;
-                float pitch = rot != null ? (float) Y.get(rot) : 0;
-                return new Location(world, (double) GET_X.invoke(pos), (double) GET_Y.invoke(pos), (double) GET_Z.invoke(pos), yaw, pitch);
-            }
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
+    public static Location getBukkitLocation(CommandSourceStack commandWrapperListener) {
+        return commandWrapperListener.getBukkitLocation();
     }
 
     // Partially extracted from CraftServer class
-    public static List<Entity> selectEntities(Object commandSourceStack, String selector) {
-        List<Object> nms;
+    public static List<Entity> selectEntities(CommandSourceStack commandSourceStack, String selector) {
+        List<? extends net.minecraft.world.entity.Entity> nms;
         List<Entity> result = new ArrayList<>();
 
         try {
-            Object arg_entities = ENTITY_ARGUMENT_ENTITIES_METHOD.invoke(null);
+            EntityArgument arg_entities = EntityArgument.entities();
             StringReader reader = new StringReader(selector);
 
-            Object entitySelectorObject = ENTITY_ARGUMENT_PARSE_METHOD.invoke(arg_entities, reader, true);
-            nms = (List<Object>) ENTITY_SELECTOR_FIND_ENTITIES_METHOD.invoke(entitySelectorObject, commandSourceStack);
-
+            EntitySelector entitySelector = arg_entities.parse(reader);
+            nms = entitySelector.findEntities((CommandSourceStack) commandSourceStack);
             Preconditions.checkArgument(!reader.canRead(), "Spurious trailing data in selector: " + selector);
 
-            for (Object entity : nms) {
+            for (net.minecraft.world.entity.Entity entity : nms) {
                 // use getBukkitSender because on entity it just returns the BukkitEntity
-                result.add((Entity) GET_BUKKIT_SENDER_METHOD.invoke(getCommandSource(entity), commandSourceStack));
+                result.add(getCommandSource(entity).hashCode(), (Entity) commandSourceStack.getBukkitSender());
+                result.add((Entity) getCommandSource(entity).getBukkitSender(commandSourceStack));
             }
 
-        } catch (IllegalAccessException | InvocationTargetException ex) {
+        } catch (CommandSyntaxException ex) {
             throw new IllegalArgumentException("Could not parse selector: " + selector, ex);
         }
 
         return result;
     }
 
-    public static Location getLocalCoord(double x, double y, double z, Object commandWrapperListener) {
-        try {
-            Object localCoordObject = LOCAL_COORD_CONSTRUCTOR.newInstance(x, y, z);
-            Object pos = LOCAL_COORD_GET_POSITION_METHOD.invoke(localCoordObject, commandWrapperListener);
+    public static Location getLocalCoord(double x, double y, double z, CommandSourceStack commandWrapperListener) {
+        LocalCoordinates localCoordinates = new LocalCoordinates(x, y, z);
+        Vec3 position = localCoordinates.getPosition(commandWrapperListener);
 
-            Location loc = getBukkitLocation(commandWrapperListener);
-
-            return new Location(loc.getWorld(), (double) GET_X.invoke(pos), (double) GET_Y.invoke(pos), (double) GET_Z.invoke((pos)));
-        } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-            throw new RuntimeException(e);
-        }
+        Location loc = getBukkitLocation(commandWrapperListener);
+        return new Location(loc.getWorld(), position.get(Direction.Axis.X), position.get(Direction.Axis.Y), position.get(Direction.Axis.Z));
     }
 
-    public static Object getCommandWrapperListenerObject(CommandSender sender) {
-        try {
-            return GET_LISTENER.invoke(null, sender);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new RuntimeException(e);
-        }
+    public static CommandSourceStack getCommandWrapperListenerObject(CommandSender sender) {
+        return VanillaCommandWrapper.getListener(sender);
     }
 
     public static Map<String, Command> getKnownCommands() {
-        try {
-            Object craftCommandMap = GET_COMMAND_MAP_METHOD.invoke(Bukkit.getServer());
-            return (Map<String, Command>) GET_KNOW_COMMANDS_METHOD.invoke(craftCommandMap);
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
+        CommandMap commandMap = Bukkit.getCommandMap();
+        return commandMap.getKnownCommands();
     }
 
     public static boolean dispatchCommandIgnorePerms(CommandSender sender, String commandstr) {
@@ -345,21 +114,7 @@ public class PsudoReflection {
             return false;
         }
 
-        if (ReflectionUtil.USING_PAPER) {
-            PaperCommandDispatcher.dispatchCommandPaper(sender, commandstr, command, sentCommandLabel, args);
-        } else {
-            try {
-                //command.timings.startTiming();
-                executeIgnorePerms(command, sender, sentCommandLabel, Arrays.copyOfRange(args, 1, args.length));
-                //command.timings.stopTiming();
-            } catch (CommandException ex) {
-                //command.timings.stopTiming();
-                throw ex;
-            } catch (Throwable ex) {
-                //command.timings.stopTiming();
-                throw new CommandException("Unhandled exception executing '" + commandstr + "' in " + command, ex);
-            }
-        }
+        PaperCommandDispatcher.dispatchCommandPaper(sender, commandstr, command, sentCommandLabel, args);
         return true;
     }
 
