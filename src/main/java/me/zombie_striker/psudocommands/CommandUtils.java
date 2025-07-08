@@ -1,11 +1,10 @@
 package me.zombie_striker.psudocommands;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.commands.CommandSourceStack;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -34,8 +33,8 @@ public class CommandUtils {
 	}
 
 	// SuggestionProvider<CommandListenerWrapper>
-	public static CompletableFuture<Suggestions> getArgumentSuggestion(CommandContext<?> context, SuggestionsBuilder builder, PsudoCommandExecutor executor, PluginCommand command) {
-		CommandSender baseSender = PsudoReflection.getBukkitBasedSender(context.getSource());
+	public static CompletableFuture<Suggestions> getArgumentSuggestion(CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context, SuggestionsBuilder builder, PsudoCommandExecutor executor, PluginCommand command) {
+		CommandSender baseSender = context.getSource().getSender();
 		String[] args = builder.getRemaining().split(" ", -1); // -1 to keep trailing space
 		List<String> completion = executor.onTabComplete(baseSender, command, null, args);
 		if (completion != null) {
@@ -54,11 +53,11 @@ public class CommandUtils {
 		return builder.buildFuture();
 	}
 
-	public static int getArgumentExecutes(CommandContext<?> context, PsudoCommandExecutor executor, PsudoCommandExecutor.PsudoCommandType commandType) {
+	public static int getArgumentExecutes(CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context, PsudoCommandExecutor executor, PsudoCommandExecutor.PsudoCommandType commandType) {
 		String[] args = StringArgumentType.getString(context, "psudoargs").split(" ");
-		Object source = context.getSource();
-		CommandSender baseSender = PsudoReflection.getBukkitBasedSender(source);
-		CommandSender sender = PsudoReflection.getBukkitSender(source);
+		CommandSourceStack source = (CommandSourceStack) context.getSource();
+		CommandSender baseSender = source.getSender();
+		CommandSender sender = source.getSender();
 		if (sender == null) {
 			sender = baseSender;
 		}
@@ -66,20 +65,6 @@ public class CommandUtils {
 		return result ? 1 : 0;
 	}
 
-	// Every <Object> is actually a <CommandListenerWrapper>
-	public static LiteralArgumentBuilder<Object> buildSpigotBrigadierCommand(PsudoCommandExecutor executor, PluginCommand command, PsudoCommandExecutor.PsudoCommandType commandType) {
-		return LiteralArgumentBuilder.literal(command.getName())
-				.executes(context -> {
-					Object source = context.getSource();
-					CommandSender baseSender = PsudoReflection.getBukkitBasedSender(source);
-					baseSender.sendMessage(CommandUtils.EMPTY_COMMAND_ERROR);
-					return 1;
-				})
-				.then(RequiredArgumentBuilder.argument("psudoargs", StringArgumentType.greedyString())
-						.suggests((context, builder) -> getArgumentSuggestion(context, builder, executor, command))
-						.executes(context -> getArgumentExecutes(context, executor, commandType))
-				);
-	}
 
 	/**
 	 * Modify the given String array to concat some arguments in one according
