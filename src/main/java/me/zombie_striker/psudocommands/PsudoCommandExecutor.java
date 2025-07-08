@@ -1,5 +1,6 @@
 package me.zombie_striker.psudocommands;
 
+import net.minecraft.commands.CommandSourceStack;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -56,7 +57,7 @@ public class PsudoCommandExecutor implements CommandExecutor, TabCompleter {
         return onCommand(sender, sender, PsudoReflection.getCommandWrapperListenerObject(sender), PsudoCommandType.getType(command), args);
     }
 
-    boolean onCommand(CommandSender baseSender, CommandSender sender, Object commandWrapperListener, PsudoCommandType type, String[] args) {
+    boolean onCommand(CommandSender baseSender, CommandSender sender, CommandSourceStack commandWrapperListener, PsudoCommandType type, String[] args) {
         if (args.length == 0) {
             baseSender.sendMessage(CommandUtils.EMPTY_COMMAND_ERROR);
             return false;
