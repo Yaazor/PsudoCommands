@@ -1,0 +1,8 @@
+main: me.zombie_striker.psudocommands.PsudoCommands
+name: PsudoCommands
+version: "2.0"
+authors:
+  - cricri_21
+  - Zombie_Striker
+  - Yazor
+api-version: 1.21.7

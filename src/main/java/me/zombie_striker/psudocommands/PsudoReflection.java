@@ -73,7 +73,6 @@ public class PsudoReflection {
 
             for (net.minecraft.world.entity.Entity entity : nms) {
                 // use getBukkitSender because on entity it just returns the BukkitEntity
-                result.add(getCommandSource(entity).hashCode(), (Entity) commandSourceStack.getBukkitSender());
                 result.add((Entity) getCommandSource(entity).getBukkitSender(commandSourceStack));
             }
 
