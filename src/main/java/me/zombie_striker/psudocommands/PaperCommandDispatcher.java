@@ -12,9 +12,6 @@ import java.util.Arrays;
 public class PaperCommandDispatcher {
 
     public static void dispatchCommandPaper(CommandSender sender, String commandstr, Command command, String sentCommandLabel, String[] args) {
-        //if (command.timings == null) {
-        //    command.timings = co.aikar.timings.TimingsManager.getCommandTiming(null, command);
-        //}
         try {
             //try (Timing ignored = command.timings.startTiming()) {
                 PsudoReflection.executeIgnorePerms(command, sender, sentCommandLabel, Arrays.copyOfRange(args, 1, args.length));

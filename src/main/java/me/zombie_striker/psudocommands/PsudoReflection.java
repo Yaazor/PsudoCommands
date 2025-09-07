@@ -14,7 +14,6 @@ import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.*;
-import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
 import org.bukkit.entity.Entity;
 import java.util.*;
 
@@ -52,7 +51,7 @@ public class PsudoReflection {
             StringReader reader = new StringReader(selector);
 
             EntitySelector entitySelector = arg_entities.parse(reader);
-            nms = entitySelector.findEntities((CommandSourceStack) commandSourceStack);
+            nms = entitySelector.findEntities(commandSourceStack);
             Preconditions.checkArgument(!reader.canRead(), "Spurious trailing data in selector: " + selector);
 
             for (net.minecraft.world.entity.Entity entity : nms) {
@@ -73,10 +72,6 @@ public class PsudoReflection {
 
         Location loc = getBukkitLocation(commandWrapperListener);
         return new Location(loc.getWorld(), position.get(Direction.Axis.X), position.get(Direction.Axis.Y), position.get(Direction.Axis.Z));
-    }
-
-    public static CommandSourceStack getCommandWrapperListenerObject(CommandSender sender) {
-        return VanillaCommandWrapper.getListener(sender);
     }
 
     public static Map<String, Command> getKnownCommands() {

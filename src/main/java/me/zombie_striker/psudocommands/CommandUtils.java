@@ -8,8 +8,6 @@ import net.minecraft.commands.CommandSourceStack;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.PluginCommand;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
@@ -32,10 +30,10 @@ public class CommandUtils {
 		return Pattern.matches("@[aerpsn]\\[", arg);
 	}
 	
-	public static CompletableFuture<Suggestions> getArgumentSuggestion(CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context, SuggestionsBuilder builder, PsudoCommandExecutor executor, PluginCommand command) {
+	public static CompletableFuture<Suggestions> getArgumentSuggestion(CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context, SuggestionsBuilder builder, PsudoCommandExecutor executor, String commandName) {
 		CommandSender baseSender = context.getSource().getSender();
 		String[] args = builder.getRemaining().split(" ", -1); // -1 to keep trailing space
-		List<String> completion = executor.onTabComplete(baseSender, command, null, args);
+		List<String> completion = executor.onTabComplete(baseSender, args);
 		if (completion != null) {
 			// offset the builder to the next argument to not be stuck at the beginning
 			int offset = 0;

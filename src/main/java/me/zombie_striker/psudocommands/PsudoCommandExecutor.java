@@ -13,13 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PsudoCommandExecutor implements CommandExecutor, TabCompleter {
-
-    private final JavaPlugin psudoCommands;
-
-    public PsudoCommandExecutor(JavaPlugin psudoCommands) {
-        this.psudoCommands = psudoCommands;
-    }
+public class PsudoCommandExecutor {
 
     public enum PsudoCommandType {
         PSUDO,
@@ -33,8 +27,8 @@ public class PsudoCommandExecutor implements CommandExecutor, TabCompleter {
             return this == PSUDO || this == PSUDO_UUID;
         }
 
-        public static PsudoCommandType getType(Command command) {
-            switch (command.getName().toLowerCase()) {
+        public static PsudoCommandType getType(String commandName) {
+            switch (commandName.toLowerCase()) {
                 case "psudo":
                     return PSUDO;
                 case "psudoas":
@@ -50,11 +44,6 @@ public class PsudoCommandExecutor implements CommandExecutor, TabCompleter {
             }
             return null;
         }
-    }
-
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
-        return onCommand(sender, sender, PsudoReflection.getCommandWrapperListenerObject(sender), PsudoCommandType.getType(command), args);
     }
 
     boolean onCommand(CommandSender baseSender, CommandSender sender, CommandSourceStack commandWrapperListener, PsudoCommandType type, String[] args) {
@@ -182,35 +171,31 @@ public class PsudoCommandExecutor implements CommandExecutor, TabCompleter {
         return atLeastOne;
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (command.testPermissionSilent(sender)) {
-            List<String> completion = new ArrayList<>();
-            int remove = 1;
-            if (args.length == remove) {
-                // Add all loaded command
-                String lastArg = args[remove-1];
-                for(Plugin plugin : Bukkit.getPluginManager().getPlugins()){
-                    for(Command c : PluginCommandYamlParser.parse(plugin)) {
-                        for (String alias_ : c.getAliases()) {
-                            complete(completion, alias_, lastArg);
-                        }
-                        complete(completion, c.getName(), lastArg);
+    public List<String> onTabComplete(CommandSender sender, String[] args) {
+        List<String> completion = new ArrayList<>();
+        int remove = 1;
+        if (args.length == remove) {
+            // Add all loaded command
+            String lastArg = args[remove-1];
+            for(Plugin plugin : Bukkit.getPluginManager().getPlugins()){
+                for(Command c : PluginCommandYamlParser.parse(plugin)) {
+                    for (String alias_ : c.getAliases()) {
+                        complete(completion, alias_, lastArg);
                     }
-                }
-            } else if (args.length > remove) {
-                // remove first args and copy the other to get the tabComplete (like writing command without psudo)
-                String[] newArgs = new String[args.length-remove];
-                System.arraycopy(args, remove, newArgs, 0, args.length - remove);
-                Command newCommand = Bukkit.getServer().getPluginCommand(args[remove-1]);
-                if (newCommand != null) {
-                    completion = newCommand.tabComplete(sender, args[remove-1], newArgs);
+                    complete(completion, c.getName(), lastArg);
                 }
             }
-            return completion;
-        } else {
-            return psudoCommands.onTabComplete(sender, command, alias, args);
+        } else if (args.length > remove) {
+            // remove first args and copy the other to get the tabComplete (like writing command without psudo)
+            String[] newArgs = new String[args.length-remove];
+            System.arraycopy(args, remove, newArgs, 0, args.length - remove);
+            Command newCommand = Bukkit.getServer().getPluginCommand(args[remove-1]);
+            if (newCommand != null) {
+                completion = newCommand.tabComplete(sender, args[remove-1], newArgs);
+            }
         }
+        return completion;
+
     }
 
     private static void complete(List<String> completion, String target, String arg) {
