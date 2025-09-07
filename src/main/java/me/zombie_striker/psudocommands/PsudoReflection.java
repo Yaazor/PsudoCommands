@@ -1,39 +1,26 @@
 package me.zombie_striker.psudocommands;
 
 import com.google.common.base.Preconditions;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.coordinates.LocalCoordinates;
 import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.core.Direction;
-import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.*;
-import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
 import org.bukkit.entity.Entity;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 
-// https://mappings.dev/1.21.1/net/minecraft/commands/CommandSourceStack.html
 public class PsudoReflection {
 
     public static CommandSender getBukkitSender(CommandSourceStack commandWrapperListener) {
-        Objects.requireNonNull(commandWrapperListener, "commandWrapperListener");
-
         net.minecraft.world.entity.Entity entity = commandWrapperListener.getEntity();
         if (entity == null) {
             return null;
@@ -50,9 +37,6 @@ public class PsudoReflection {
         }
     }
 
-    public static CommandSender getBukkitBasedSender(CommandSourceStack commandWrapperListener) {
-        return commandWrapperListener.getBukkitSender();
-    }
 
     public static Location getBukkitLocation(CommandSourceStack commandWrapperListener) {
         return commandWrapperListener.getBukkitLocation();

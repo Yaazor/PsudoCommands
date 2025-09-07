@@ -29,7 +29,7 @@ public class CommandUtils {
 	}
 
 	public static boolean isSelectorStartWithTag(String arg) {
-		return Pattern.matches("@[aerps]\\[", arg);
+		return Pattern.matches("@[aerpsn]\\[", arg);
 	}
 	
 	public static CompletableFuture<Suggestions> getArgumentSuggestion(CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context, SuggestionsBuilder builder, PsudoCommandExecutor executor, PluginCommand command) {
@@ -56,7 +56,7 @@ public class CommandUtils {
 		String[] args = StringArgumentType.getString(context, "psudoargs").split(" ");
 		CommandSourceStack source = (CommandSourceStack) context.getSource();
 		CommandSender baseSender = source.getSender();
-		CommandSender sender = source.getSender();
+		CommandSender sender = PsudoReflection.getBukkitSender(source);
 		if (sender == null) {
 			sender = baseSender;
 		}
