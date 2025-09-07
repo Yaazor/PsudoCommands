@@ -31,8 +31,7 @@ public class CommandUtils {
 	public static boolean isSelectorStartWithTag(String arg) {
 		return Pattern.matches("@[aerps]\\[", arg);
 	}
-
-	// SuggestionProvider<CommandListenerWrapper>
+	
 	public static CompletableFuture<Suggestions> getArgumentSuggestion(CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context, SuggestionsBuilder builder, PsudoCommandExecutor executor, PluginCommand command) {
 		CommandSender baseSender = context.getSource().getSender();
 		String[] args = builder.getRemaining().split(" ", -1); // -1 to keep trailing space
