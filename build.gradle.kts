@@ -1,7 +1,7 @@
 plugins {
   `java-library`
   id("io.papermc.paperweight.userdev") version "2.0.0-beta.18"
-  id("xyz.jpenilla.run-paper") version "2.3.1" // Adds runServer and runMojangMappedServer tasks for testing
+  id("xyz.jpenilla.run-paper") version "3.0.2" // Adds runServer and runMojangMappedServer tasks for testing
 }
 
 group = "me.zombie_striker.PsudoCommands"
@@ -30,4 +30,12 @@ tasks {
   jar {
 
   }
+}
+
+tasks.withType(xyz.jpenilla.runtask.task.AbstractRun::class) {
+    javaLauncher = javaToolchains.launcherFor {
+        vendor = JvmVendorSpec.JETBRAINS
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    jvmArgs("-XX:+AllowEnhancedClassRedefinition")
 }
