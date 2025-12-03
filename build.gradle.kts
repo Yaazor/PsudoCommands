@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "me.zombie_striker.PsudoCommands"
-version = "2.1"
+version = "2.2"
 description = "TODO"
 
 java {

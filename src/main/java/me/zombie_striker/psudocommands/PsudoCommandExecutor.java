@@ -1,5 +1,7 @@
 package me.zombie_striker.psudocommands;
 
+import io.papermc.paper.command.brigadier.PaperCommandSourceStack;
+import io.papermc.paper.command.brigadier.PaperCommands;
 import net.minecraft.commands.CommandSourceStack;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -164,7 +166,7 @@ public class PsudoCommandExecutor {
                 if (Bukkit.dispatchCommand(actualSender, cmd.toString()))
                     atLeastOne = true;
             } else {
-                if (PsudoReflection.dispatchCommandIgnorePerms(actualSender, cmd.toString()))
+                if (PsudoReflection.dispatchCommandIgnorePerms(commandWrapperListener, cmd.toString()))
                     atLeastOne = true;
             }
         }

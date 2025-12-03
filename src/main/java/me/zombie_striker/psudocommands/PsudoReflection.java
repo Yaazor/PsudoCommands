@@ -79,9 +79,7 @@ public class PsudoReflection {
         return commandMap.getKnownCommands();
     }
 
-    public static boolean dispatchCommandIgnorePerms(CommandSender sender, String commandstr) {
-        // TODO : org.apache.commons.lang3 will be removed in the future, keep an eye here
-        //String[] args = StringUtils.split(commandstr, ' ');
+    public static boolean dispatchCommandIgnorePerms(CommandSourceStack sourceStack, String commandstr) {
         String[] args = commandstr.split(" ");
         if (args.length == 0) {
             return false;
@@ -92,31 +90,7 @@ public class PsudoReflection {
             return false;
         }
 
-        PaperCommandDispatcher.dispatchCommandPaper(sender, commandstr, command, sentCommandLabel, args);
+        Bukkit.getServer().dispatchCommand(sourceStack.getSender(), commandstr);
         return true;
-    }
-
-    public static boolean executeIgnorePerms(Command command, CommandSender sender, String label, String[] args) {
-        if (command instanceof PluginCommand) {
-            PluginCommand pluginCommand = (PluginCommand) command;
-            boolean success;
-            if (!pluginCommand.getPlugin().isEnabled()) {
-                throw new CommandException("Cannot execute command '" + label + "' in plugin " + pluginCommand.getPlugin().getDescription().getFullName() + " - plugin is disabled.");
-            }
-            try {
-                success = pluginCommand.getExecutor().onCommand(sender, pluginCommand, label, args);
-            } catch (Throwable ex) {
-                throw new CommandException("Unhandled exception executing command '" + label + "' in plugin " + pluginCommand.getPlugin().getDescription().getFullName(), ex);
-            }
-            if (!success && !pluginCommand.getUsage().isEmpty()) {
-                for (String line : pluginCommand.getUsage().replace("<command>", label).split("\n")) {
-                    sender.sendMessage(line);
-                }
-            }
-            return success;
-        } else {
-            // don't check VanillaCommandWrapper type because we can ignore psudo and use vanilla behavior
-            return command.execute(sender, label, args);
-        }
     }
 }

@@ -40,6 +40,7 @@ public class PsudoCommands extends JavaPlugin {
                 psudoArguments.executes(ctx -> CommandUtils.getArgumentExecutes(ctx, executor, PsudoCommandExecutor.PsudoCommandType.getType(commandName)));
 
                 command.then(psudoArguments);
+                command.requires(ctx -> ctx.getSender().hasPermission("psudo.command"));
 
                 LiteralCommandNode<CommandSourceStack> buildCommand = command.build();
                 commands.registrar().register(buildCommand);
