@@ -62,7 +62,6 @@ public class CommandUtils {
 		return result ? 1 : 0;
 	}
 
-
 	/**
 	 * Modify the given String array to concat some arguments in one according
 	 * to the beginning and the end. For example, if : begin and end are double

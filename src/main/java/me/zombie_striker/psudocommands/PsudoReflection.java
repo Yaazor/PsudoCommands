@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.*;
 import org.bukkit.entity.Entity;
+
 import java.util.*;
 
 public class PsudoReflection {
@@ -86,11 +87,11 @@ public class PsudoReflection {
         }
         String sentCommandLabel = args[0].toLowerCase(java.util.Locale.ENGLISH);
         Command command = getKnownCommands().get(sentCommandLabel.toLowerCase(java.util.Locale.ENGLISH));
-        if (command == null) {
-            return false;
-        }
+        var returned = command != null;
+        var executor = sourceStack.getSender();
+        if(sourceStack.getExecutor() != null) executor = sourceStack.getExecutor();
 
-        Bukkit.getServer().dispatchCommand(sourceStack.getSender(), commandstr);
-        return true;
+        Bukkit.getServer().dispatchCommand(executor, commandstr);
+        return returned;
     }
 }

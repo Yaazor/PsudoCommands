@@ -18,18 +18,25 @@ dependencies {
 }
 
 tasks {
-  compileJava {
-    // Set the release flag. This configures what version bytecode the compiler will emit, as well as what JDK APIs are usable.
-    // See https://openjdk.java.net/jeps/247 for more information.
-    options.release = 21
-  }
-  javadoc {
-    options.encoding = Charsets.UTF_8.name() // We want UTF-8 for everything
-  }
+    compileJava {
+        // Set the release flag. This configures what version bytecode the compiler will emit, as well as what JDK APIs are usable.
+        // See https://openjdk.java.net/jeps/247 for more information.
+        options.release = 21
+    }
 
-  jar {
+    javadoc {
+        options.encoding = Charsets.UTF_8.name() // We want UTF-8 for everything
+    }
 
-  }
+    jar {
+
+    }
+
+    runServer {
+        downloadPlugins {
+            //modrinth("bettermodel", "UUy4dplZ")
+        }
+    }
 }
 
 tasks.withType(xyz.jpenilla.runtask.task.AbstractRun::class) {
@@ -37,5 +44,7 @@ tasks.withType(xyz.jpenilla.runtask.task.AbstractRun::class) {
         vendor = JvmVendorSpec.JETBRAINS
         languageVersion = JavaLanguageVersion.of(21)
     }
+
     jvmArgs("-XX:+AllowEnhancedClassRedefinition")
 }
+
